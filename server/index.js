@@ -9,22 +9,26 @@ import { fileURLToPath } from 'url';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const JWT_SECRET = 'your_super_secret_jwt_key_2026';
+const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_jwt_key_2026';
 
 app.use(cors());
 app.use(express.json());
 
-// Ensure uploads folder exists
+// Ensure uploads folder exists in local environment
 const uploadsDir = './uploads';
 if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir);
+  try {
+    fs.mkdirSync(uploadsDir);
+  } catch (err) {
+    // Read-only filesystem warning in serverless environments
+  }
 }
 app.use('/uploads', express.static('uploads'));
 
 // --- MULTER STORAGE CONFIGURATION ---
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/');
+    cb(null, '/tmp'); // Use Vercel's temporary writable directory for uploads
   },
   filename: (req, file, cb) => {
     cb(null, `${Date.now()}-${file.originalname}`);
@@ -56,7 +60,7 @@ let activeSessions = [];
 let feedbackSubmissions = [];
 let uploadedFiles = [];
 
-// Clean initial contact/inquiry data (NO STARS)
+// Clean initial contact/inquiry data
 let contacts = [
   { id: 1, name: "Sahil", email: "sahil@example.com", message: "Love the dark UI theme!" },
   { id: 2, name: "Alex", email: "alex@example.com", message: "Interested in the Pro subscription plan." }
@@ -94,14 +98,13 @@ app.post('/api/upload', (req, res) => {
       return res.status(400).json({ success: false, error: 'Please select a file to upload.' });
     }
 
-    const fileUrl = `http://localhost:${PORT}/uploads/${req.file.filename}`;
     const fileRecord = {
       id: Date.now(),
       filename: req.file.filename,
       originalName: req.file.originalname,
       mimeType: req.file.mimetype,
       size: req.file.size,
-      url: fileUrl,
+      url: `/uploads/${req.file.filename}`,
       uploadedAt: new Date().toISOString()
     };
 
@@ -120,7 +123,7 @@ app.get('/api/uploads', async (req, res) => {
   res.json(uploadedFiles);
 });
 
-// --- FEEDBACK ENDPOINTS (STARS KEPT HERE) ---
+// --- FEEDBACK ENDPOINTS ---
 app.post('/api/feedback', (req, res, next) => {
   upload.single('attachment')(req, res, (err) => {
     if (err) {
@@ -301,7 +304,7 @@ app.get('/api/admin/active-users', (req, res) => {
   });
 });
 
-// --- CONTACTS / INQUIRIES ROUTES (NO STARS AT ALL) ---
+// --- CONTACTS / INQUIRIES ROUTES ---
 app.get('/api/contacts', async (req, res) => {
   await delay();
   res.json(contacts);
@@ -406,10 +409,10 @@ app.get('/api/analytics', async (req, res) => {
   });
 });
 
-const isMainModule = process.argv[1] && fileURLToPath(import.meta.url) === fs.realpathSync(process.argv[1]);
-if (isMainModule || process.env.NODE_ENV !== 'test') {
+// --- LISTEN ONLY IN LOCAL DEVELOPMENT ---
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
   app.listen(PORT, () => {
-    console.log(`🚀 Server running at http://localhost:${PORT}`);
+    console.log(`🚀 Server running locally at http://localhost:${PORT}`);
   });
 }
 
