@@ -17,7 +17,7 @@ import Dashboard from "./Dashboard.jsx";
 
 // Feedback & Feature Components
 import UserFeedbackForm from "./UserFeedbackForm.jsx";
-import FileUpload from "./components/FlileUpload.jsx";
+import FileUpload from "./components/FileUpload.jsx";
 import AnalyticsDashboard from "./components/AnalyticsDashboard.jsx";
 
 function MainContent() {
