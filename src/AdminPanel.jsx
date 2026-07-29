@@ -3,9 +3,10 @@ import { useApp } from './context/AppContext.jsx';
 import { SkeletonCard } from './components/SkeletonLoader.jsx';
 import { EmptyState } from './components/EmptyState.jsx';
 
-const CONTACTS_API = 'http://localhost:5000/api/contacts';
-const FEEDBACK_API = 'http://localhost:5000/api/feedback';
-const LOGIN_URL = 'http://localhost:5000/api/admin/login';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
+const CONTACTS_API = `${API_BASE}/contacts`;
+const FEEDBACK_API = `${API_BASE}/feedback`;
+const LOGIN_URL = `${API_BASE}/admin/login`;
 
 function AdminPanel({ onSwitchToPublic }) {
   const { fetchReviews } = useApp();
