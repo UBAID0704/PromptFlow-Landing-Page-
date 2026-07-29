@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import FileUpload from './components/FileUpload.jsx';
 
-const FEEDBACK_API = 'http://localhost:5000/api/feedback';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
+const FEEDBACK_API = `${API_BASE}/feedback`;
 
 export default function UserFeedbackForm() {
   const [fullName, setFullName] = useState('');
