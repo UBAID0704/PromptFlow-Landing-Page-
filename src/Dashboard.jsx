@@ -18,7 +18,7 @@ function Dashboard({ user, onLogout }) {
       }
 
       try {
-        const res = await fetch(`${API_BASE}/api/auth/me`, {
+        const res = await fetch(`${API_BASE}/auth/me`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
