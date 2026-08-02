@@ -2,7 +2,7 @@
 
 A modern, responsive, full-stack AI-powered web application built using **React.js**, **Vite**, **Express.js**, **bcrypt.js**, **multer**, **Recharts**, and **JWT Authentication**. This project was completed as part of a **Full Stack Internship** and demonstrates modern frontend development, REST API integration, CRUD operations, secure authentication, route guarding, global state management, form validation, file uploads, data visualization, and responsive UI/UX design.
 
-The project evolved across nine key milestones:
+The project evolved across ten key milestones:
 
 - **Week 1 – Task 1:** Consume a Public API (Responsive AI Landing Page)
 - **Week 1 – Task 2:** Responsive UI From a Design Brief (Hugging Face API Integration)
@@ -13,6 +13,19 @@ The project evolved across nine key milestones:
 - **Week 4 – Task 1:** File & Media Upload Engine (Drag-and-Drop UI, Multer Storage Pipeline)
 - **Week 4 – Task 2:** Real-Time Analytics & Data Visualization Dashboard (Recharts, Server-Side Aggregation API)
 - **Week 5 – Task 1:** Testing Across the Stack (Admin Security, Feedback Consolidation, Database Management Panel)
+- **Week 5 – Task 2:** Production Deployment (Vercel Serverless Backend, Environment Configuration, Live Release)
+
+---
+
+## 🌍 Live Deployment
+
+**Live App:** [https://prompt-flow-landing-page.vercel.app](https://prompt-flow-landing-page.vercel.app) <!-- ⚠️ Replace with your actual production URL from Vercel → Deployments → Production -->
+
+**GitHub Repository:** [github.com/UBAID0704/PromptFlow-AI-Landing-Page-](https://github.com/UBAID0704/PromptFlow-AI-Landing-Page-)
+
+**Hosting:** Vercel (frontend static build + backend serverless function, single project, single domain)
+
+> **Note:** Vercel generates a new preview URL for every branch/PR deployment (e.g. `prompt-flow-landing-page-xxxxx-ubaids-projects.vercel.app`). Always use the **Production** deployment URL from the Vercel dashboard for the live link above — preview URLs are temporary and change with every commit.
 
 ---
 
@@ -36,6 +49,83 @@ The platform includes:
 - Real-time analytics dashboard with area, pie, and bar chart visualizations
 - Real-time server active-session logging in the terminal
 - Consolidated, tested admin database management panel with restored access security
+- Production deployment on Vercel with a serverless Express backend
+
+---
+
+## 🏗️ Architecture Overview
+
+PromptFlow AI runs as a **single Vercel project** that serves both the frontend and backend from one domain — there is no separate backend host.
+
+```
+                        ┌─────────────────────────────┐
+                        │        Vercel Project        │
+                        │                               │
+   Browser  ───────────▶│  Static Build (Vite/React)   │
+   (User)                │  served from  /dist          │
+                        │                               │
+                        │  fetch('/api/...')            │
+                        │        │                      │
+                        │        ▼                      │
+                        │  Serverless Function           │
+                        │  api/index.js (Express app)    │
+                        │  - Auth (JWT + bcrypt)         │
+                        │  - Feedback / Contacts CRUD     │
+                        │  - File uploads (multer,        │
+                        │    in-memory storage)           │
+                        │  - Analytics aggregation         │
+                        └─────────────────────────────┘
+```
+
+### Frontend
+- **React 19 + Vite** — builds to static assets, deployed as Vercel's static output.
+- All API calls go through a single base URL read from `import.meta.env.VITE_API_URL`, set to `/api` in production. Because the frontend and backend share the same Vercel domain, a **relative path** works — no CORS-prone cross-domain calls, no separate backend URL to manage.
+- Component fetch calls follow the pattern: `` `${API_BASE}/endpoint` `` — **not** `` `${API_BASE}/api/endpoint` ``, since `API_BASE` already includes `/api`.
+
+### Backend
+- **Express app exported as a Vercel Serverless Function** at `api/index.js`. This is the file that actually runs in production.
+- Routing is handled by `vercel.json`, which rewrites all `/api/*` requests to `api/index.js`:
+  ```json
+  {
+    "rewrites": [
+      { "source": "/api/(.*)", "destination": "/api/index.js" }
+    ]
+  }
+  ```
+- Written in **ES Modules** (`import`/`export default`) to match `"type": "module"` in `package.json` — Vercel's Node runtime requires this to match, or the function fails to load.
+- **File uploads use `multer.memoryStorage()`**, not disk storage. Vercel's serverless filesystem is read-only outside of `/tmp`, and `/tmp` itself doesn't persist between invocations — so uploaded files are validated and acknowledged, but not saved to permanent storage. For real file persistence, this would need to be extended with external object storage (e.g. AWS S3, Vercel Blob, Cloudinary).
+- **In-memory data (users, feedback, contacts, uploads) does not persist reliably across requests.** Serverless functions can spin up fresh instances at any time, wiping in-memory arrays. This is expected behavior for this architecture and fine for demonstrating endpoint logic, but not a substitute for a real database in a production product.
+
+### Local Development vs. Production
+There are **two backend entry points** in this repo, serving different purposes:
+
+| File | Purpose | Runs where |
+|---|---|---|
+| `server/index.js` | Full Express server with `app.listen()`, disk-based multer storage | Local development only (`node server/index.js`) |
+| `api/index.js` | Same Express logic, adapted for serverless (ESM, memory storage, no `app.listen()` in production) | Deployed on Vercel |
+
+Keep both in sync manually when adding new routes — changes to one do not automatically apply to the other.
+
+---
+
+## ⚙️ Environment Variables
+
+Set these in **Vercel → Project Settings → Environment Variables** (Production and Preview):
+
+| Variable | Example Value | Purpose |
+|---|---|---|
+| `VITE_API_URL` | `/api` | Base path the frontend uses for all backend calls. Must be a **relative path** since frontend and backend share a domain. |
+| `JWT_SECRET` | a long random string | Signs and verifies JWT session tokens. Generate with `openssl rand -hex 48`. |
+| `ADMIN_PASSWORD` | your chosen password | Overrides the default fallback password for the Admin Console. |
+
+For local development, create a `.env` file in the project root (not committed to Git):
+```
+VITE_API_URL=http://localhost:5000
+JWT_SECRET=dev_only_secret_change_in_production
+ADMIN_PASSWORD=admin123
+```
+
+> **Important:** Vite bakes `VITE_*` variables into the build at **build time**, not runtime. Changing an environment variable in Vercel's dashboard has no effect until you trigger a **new deployment** (a redeploy of an old build reuses the old baked-in values).
 
 ---
 
@@ -188,7 +278,7 @@ Build a multi-field form connected to the backend with strict dual-layer validat
   - **Client-Side:** Checks inputs instantly on submit and displays field-specific error messages directly under failing inputs.
   - **Server-Side Guard:** The Express server re-validates all payload fields. Never trusts frontend input alone and returns structured HTTP `400` errors if bypassed.
 
-- **Multipart File Storage (`multer`):** Handles image/document uploads via `multer` middleware, storing them in `./uploads` and serving them statically.
+- **Multipart File Storage (`multer`):** Handles image/document uploads via `multer` middleware. In local development this writes to `./uploads` and serves them statically; in production (Vercel) this uses in-memory storage since disk writes aren't available (see [Architecture Overview](#-architecture-overview)).
 
 - **UI Feedback & Loading States:**
   - Submit button disables during request processing (`isSubmitting`) to prevent double submission.
@@ -224,22 +314,22 @@ Give users a frictionless way to attach, upload, and process files, replacing ba
 - **Progress Tracking & Feedback:**
   Real-time upload progress bar animation with visual success/error state cards and download/view links.
 
-- **Backend Storage Pipeline (`server/index.js`):**
-  Configured Multer disk storage on the Node.js/Express server to auto-create an `./uploads/` directory, apply unique timestamped file identifiers to prevent collisions, and serve files statically via Express static routes (`app.use('/uploads', express.static('uploads'))`).
+- **Backend Storage Pipeline:**
+  In local development (`server/index.js`), Multer disk storage auto-creates an `./uploads/` directory, applies unique timestamped file identifiers to prevent collisions, and serves files statically via Express static routes. In production (`api/index.js`), storage is in-memory to accommodate Vercel's read-only serverless filesystem.
 
-- **Upload Endpoint:** `POST /api/upload` processes multipart form uploads and returns public file URLs.
+- **Upload Endpoint:** `POST /api/upload` processes multipart form uploads and returns file metadata (and, in local dev, a public file URL).
 
 ### 🏗 Architecture & Tech Stack
 
 - **Frontend:** React, HTML5 Drag & Drop API, Fetch API with progress handlers
-- **Backend:** Node.js, Express, Multer (`multer.diskStorage`)
+- **Backend:** Node.js, Express, Multer (`multer.diskStorage` locally, `multer.memoryStorage` in production)
 
 ### 🚀 Skills Demonstrated
 
 - Drag-and-drop UI engineering
 - Client & server-side file validation
 - Upload progress tracking with the Fetch API
-- Multer disk storage configuration & static file serving
+- Multer storage configuration (disk and memory) & static file serving
 
 ---
 
@@ -340,6 +430,52 @@ Consolidate administrative controls, harden access to sensitive data, and optimi
 
 ---
 
+## 🚀 Week 5 – Task 2: Production Deployment
+
+### 🎯 Objective
+
+Deploy the full-stack application to a live, publicly accessible production environment on Vercel, converting the standalone Express server into a serverless-compatible backend.
+
+### ✨ Features & Implementation
+
+- **Serverless Backend Conversion (`api/index.js`):**
+  Rewrote the Express backend from CommonJS to ES Modules (required by `"type": "module"` in `package.json`) and exported the Express app directly instead of calling `app.listen()`, allowing Vercel to invoke it per-request as a serverless function.
+
+- **Routing Configuration (`vercel.json`):**
+  Added a rewrite rule directing all `/api/*` requests to `api/index.js`, so the frontend and backend share a single domain with no CORS complications.
+
+- **Storage Adaptation for Serverless Constraints:**
+  Replaced `multer.diskStorage()` with `multer.memoryStorage()` in the production backend, since Vercel's serverless filesystem is read-only outside of the ephemeral `/tmp` directory.
+
+- **Environment-Driven Configuration:**
+  Replaced hardcoded `localhost:5000` API URLs across all frontend components with `import.meta.env.VITE_API_URL`, sourced from Vercel's environment variables and set to a relative `/api` path in production.
+
+- **Secrets Management:**
+  Moved the JWT signing secret and admin password out of hardcoded strings into Vercel environment variables (`JWT_SECRET`, `ADMIN_PASSWORD`), with safe local-development fallbacks.
+
+- **Debugging & Verification:**
+  Used browser DevTools (Network tab, response inspection) and Vercel's deployment/function logs to trace and resolve a chain of production-only issues: ESM/CommonJS mismatches, incorrect environment variable names, a stale placeholder API URL, and a duplicated `/api` prefix in constructed request URLs.
+
+### 🚀 Skills Demonstrated
+
+- Serverless function architecture & deployment on Vercel
+- ESM vs. CommonJS module resolution
+- Environment variable management across build-time and runtime contexts
+- Debugging production-only issues via browser DevTools and platform logs
+- Adapting file-upload logic for stateless, ephemeral serverless environments
+
+### 📌 Week 5 – Task 2 File Change Summary
+
+| File Path | Status | Task | Key Purpose |
+| --- | --- | --- | --- |
+| `api/index.js` | **Created** | Task 2 | Serverless-compatible Express backend deployed to Vercel |
+| `vercel.json` | **Created** | Task 2 | Routes `/api/*` requests to the serverless function |
+| `Contact.jsx` | **Updated** | Task 2 | Replaced hardcoded `localhost:5000` URL with `VITE_API_URL`; fixed duplicated `/api` prefix |
+| `Dashboard.jsx` | **Updated** | Task 2 | Fixed duplicated `/api` prefix in `/api/auth/me` fetch call |
+| `README.md` | **Updated** | Task 2 | Added live URL, architecture overview, environment variables, and deployment documentation |
+
+---
+
 ## 📂 Complete Project Structure
 
 ```
@@ -348,12 +484,16 @@ AI-LANDING-PAGE/
 ├── .vscode/
 ├── node_modules/
 │
+├── api/
+│   └── index.js                # Vercel serverless function — the backend that actually runs in production
+│                                # (ESM, multer.memoryStorage, no app.listen())
+│
 ├── server/
 │   ├── tests/
-│   │   └── api.test.js       # Backend API test suite (Week 5)
-│   └── index.js               # Express backend: JWT auth, bcrypt, multer file storage,
-│                               # /api/upload, /api/analytics aggregation, dual-validation guards,
-│                               # terminal logging, and synced feedback/contact data mapping
+│   │   └── api.test.js         # Backend API test suite (Week 5), tests server/index.js
+│   └── index.js                 # Express backend for LOCAL DEVELOPMENT ONLY: JWT auth, bcrypt,
+│                                 # disk-based multer file storage, /api/upload, /api/analytics
+│                                 # aggregation, dual-validation guards, terminal logging
 │
 ├── src/
 │   ├── __tests__/
@@ -366,13 +506,13 @@ AI-LANDING-PAGE/
 │   │   └── SkeletonLoader.jsx # Animated shimmer cards for async loading
 │   ├── context/
 │   │   └── AppContext.jsx    # Global React Context provider & useApp hook
-│   ├── AdminPanel.jsx        # Protected admin moderation panel (password modal, enhanced CRUD) (UPDATED)
+│   ├── AdminPanel.jsx        # Protected admin moderation panel (password modal, enhanced CRUD)
 │   ├── AiModelsList.jsx      # Live model explorer using Hugging Face API
 │   ├── App.jsx               # Root layout wrapped in <AppProvider>, view router, and route guard logic
 │   ├── AuthModal.jsx         # Client-validated Signup & Login modal form
-│   ├── Contact.jsx           # Contact section
+│   ├── Contact.jsx           # Contact section (UPDATED — env-driven API URL, Week 5 Task 2)
 │   ├── CrudDashboard.jsx     # Unified Community Hub & Support Center with tabs, using global store
-│   ├── Dashboard.jsx         # Protected user workspace route
+│   ├── Dashboard.jsx         # Protected user workspace route (UPDATED — env-driven API URL, Week 5 Task 2)
 │   ├── Features.jsx          # AI product features showcase
 │   ├── Footer.jsx            # Platform footer
 │   ├── Hero.jsx              # Hero section banner
@@ -381,12 +521,13 @@ AI-LANDING-PAGE/
 │   ├── Navbar.jsx             # Navigation bar using direct global state
 │   ├── Pricing.jsx            # Subscription pricing tiers
 │   ├── setupTests.js          # Shared test environment configuration (Week 5, NEW)
-│   └── UserFeedbackForm.jsx   # Multi-field feedback form with optional file upload & validation (UPDATED)
+│   └── UserFeedbackForm.jsx   # Multi-field feedback form with optional file upload & validation
 │
-├── uploads/                    # Static file storage directory (feedback attachments + Task 1 uploads)
+├── uploads/                    # Local-only static file storage directory (not used in production)
 ├── index.html                 # Main HTML entry point
 ├── package.json               # Dependencies (express, cors, jsonwebtoken, bcryptjs, multer, recharts, vite, react)
 ├── package-lock.json          # Automatically generated dependency lock file
+├── vercel.json                 # Vercel routing config — rewrites /api/* to api/index.js (Week 5, NEW)
 ├── vite.config.js             # Vite build & test runner configuration (Week 5, NEW)
 └── README.md                  # Project documentation
 ```
@@ -399,11 +540,13 @@ AI-LANDING-PAGE/
 |------|---------------------------|-------------|
 | **Public Visitor** | None | Submit ratings & feedback, read community feedback |
 | **Registered User** | Created via Signup | Access protected `/dashboard` & session persistence |
-| **Administrator** | Password: `admin123` (verified via password modal) | Full CRUD access (Create, Read, Update, Delete) |
+| **Administrator** | Password from `ADMIN_PASSWORD` env var (defaults to `admin123` locally) | Full CRUD access (Create, Read, Update, Delete) |
 
 ---
 
 ## 🌐 API Endpoints Overview
+
+All endpoints below are served from the same domain in production, under the `/api` prefix.
 
 | Method | Endpoint | Access Level | Description |
 |--------|----------|---------------|--------------|
@@ -414,11 +557,12 @@ AI-LANDING-PAGE/
 | POST | `/api/auth/login` | Public | Authenticate user & issue signed JWT |
 | POST | `/api/auth/logout` | User | Clear session from active tracking |
 | GET | `/api/auth/me` | Protected | Verify user JWT token and fetch profile |
-| POST | `/api/admin/login` | Admin | Authenticate admin password (`admin123`) via password modal |
+| POST | `/api/admin/verify` | Admin | Verify admin password for panel access |
+| POST | `/api/admin/login` | Admin | Authenticate admin password via password modal, issues admin JWT |
 | PUT | `/api/contacts/:id` | **Admin Only** | Update existing record (Requires JWT) |
 | DELETE | `/api/contacts/:id` | **Admin Only** | Remove review from database (Requires JWT) |
 | GET | `/api/admin/active-users` | Admin | View active sessions and real-time logs |
-| POST | `/api/upload` | Public | Upload a file via multipart form data; returns a public file URL |
+| POST | `/api/upload` | Public | Upload a file via multipart form data; returns file metadata |
 | GET | `/api/analytics` | Admin | Retrieve aggregated platform metrics (revenue, users, storage, feature usage); supports `?category=` filtering |
 
 ---
@@ -435,6 +579,7 @@ AI-LANDING-PAGE/
 
 **Frontend:** React.js, Vite, JavaScript (ES6+), HTML5, CSS3, React Context API, HTML5 Drag & Drop API, Recharts
 **Backend:** Express.js, Node.js, JSON Web Token (JWT), bcrypt.js, multer, CORS
+**Deployment:** Vercel (static frontend build + serverless backend function on a single domain)
 **API:** Hugging Face Models API, Fetch API
 **Testing:** Frontend and backend test suites for API, component, and end-to-end coverage
 
@@ -452,14 +597,21 @@ cd ai-landing-page
 ### 2. Install Dependencies
 
 ```bash
-# Install frontend & backend dependencies
 npm install
-npm install express cors jsonwebtoken bcryptjs multer recharts
+```
+
+### 3. Configure Environment Variables (Local Development)
+
+Create a `.env` file in the project root:
+```
+VITE_API_URL=http://localhost:5000
+JWT_SECRET=dev_only_secret_change_in_production
+ADMIN_PASSWORD=admin123
 ```
 
 ---
 
-## ▶ Running the Application
+## ▶ Running the Application Locally
 
 To run the full-stack system, open **two separate terminal windows** in VS Code:
 
@@ -481,7 +633,27 @@ npm run dev
 
 ---
 
-## 🖥️ Real-Time Terminal Activity Logs
+## ☁️ Deploying to Vercel
+
+1. **Push the repository to GitHub** (already done — see repo link above).
+2. **Import the project into Vercel:**
+   - Go to [vercel.com/new](https://vercel.com/new) and import the GitHub repository.
+   - Vercel auto-detects the Vite frontend build settings — no changes needed there.
+3. **Set Environment Variables** in Vercel → Project Settings → Environment Variables (apply to both Production and Preview):
+   - `VITE_API_URL` = `/api`
+   - `JWT_SECRET` = a securely generated random string (`openssl rand -hex 48`)
+   - `ADMIN_PASSWORD` = your chosen admin password
+4. **Deploy.** Vercel builds the static frontend and deploys `api/index.js` as a serverless function automatically based on `vercel.json`.
+5. **Verify the deployment:**
+   - Visit the deployment URL and test the Contact form, Feedback form, and Admin Console.
+   - If any request fails, check **Vercel → Deployments → (latest) → Functions → Logs** for backend errors, and the browser DevTools **Network** tab for the exact failing request URL and response.
+6. **Promote to Production** (if testing via a preview deployment first) via Vercel → Deployments → Promote to Production, or by merging into your production branch if auto-deploy is configured.
+
+> **Common pitfall:** changing an environment variable does not affect an already-built deployment. After changing any `VITE_*` variable, trigger a **new deployment** (push a commit, or use Redeploy with a fresh build) for the change to take effect.
+
+---
+
+## 🖥️ Real-Time Terminal Activity Logs (Local Development)
 
 While `node server/index.js` is running in Terminal 1, all authentication and management actions print live activity blocks directly to the console:
 
@@ -553,7 +725,7 @@ npm run dev
 
 **7. Testing Admin Access Security & Data Sync (Week 5, Task 1)**
 - Attempt to open the Admin Panel without entering the password and confirm access is blocked by the verification modal.
-- Enter the correct admin password (`admin123`) and confirm the panel unlocks with full CRUD access.
+- Enter the correct admin password and confirm the panel unlocks with full CRUD access.
 - Submit a feedback record with no attachment and confirm it maps correctly into both the admin panel and public views without errors.
 - Edit and delete a record from the enhanced Database Management Panel and confirm it stays synchronized across admin and public views.
 
@@ -561,6 +733,12 @@ npm run dev
 - Run backend API tests: `npm test --prefix server` (or the configured test script for `server/tests/api.test.js`).
 - Run frontend component and end-to-end tests: `npm test` (executes `src/__tests__/components.test.jsx` and `src/__tests__/e2eFlow.test.jsx` via the Vite-configured test runner).
 - Confirm all suites pass before merging changes.
+
+**9. Testing the Production Deployment (Week 5, Task 2)**
+- Visit the live production URL.
+- Open DevTools → Network tab with "Preserve log" enabled.
+- Repeat steps 4–7 above against the live site and confirm every request resolves with a 2xx status and hits `/api/<endpoint>` (not `/api/api/<endpoint>` or `localhost:5000`).
+- Check Vercel → Deployments → Functions → Logs if any request returns a 404/500, to inspect the underlying serverless function error.
 
 ---
 
@@ -576,11 +754,13 @@ npm run dev
 
 **State Management & UI Polish:** React Context API, Eliminating Prop-Drilling, Skeleton Loading States, Empty-State UX Design
 
-**File Handling & Media:** Drag-and-Drop UI Engineering, HTML5 Drag & Drop API, Multer Disk Storage, Upload Progress Tracking, Client & Server File Validation
+**File Handling & Media:** Drag-and-Drop UI Engineering, HTML5 Drag & Drop API, Multer Disk & Memory Storage, Upload Progress Tracking, Client & Server File Validation
 
 **Data Visualization & Analytics:** Recharts (Area, Pie, Bar Charts), Server-Side Data Aggregation, Query-Parameter-Driven Filtering, Responsive Chart Design
 
 **Testing & QA:** Backend API Testing, Component & Interaction Testing, End-to-End Flow Testing, Test Environment Configuration
+
+**Deployment & DevOps:** Serverless Function Architecture, ESM/CommonJS Module Systems, Environment Variable Management (Build-Time vs. Runtime), Production Debugging with Browser DevTools & Platform Logs
 
 **Software Engineering:** Project Structure, State Management, Authentication Flow, Error Handling, Clean Code Organization
 
@@ -590,7 +770,7 @@ npm run dev
 
 - AI-powered content generation
 - AI writing playground
-- Database-backed user authentication
+- Database-backed user authentication (replacing in-memory arrays with a persistent database)
 - Cloud database integration
 - AI chatbot assistant
 - Advanced AI model filtering
@@ -599,8 +779,9 @@ npm run dev
 - Image generation support
 - Bookmark favorite AI models
 - Exportable analytics reports (CSV/PDF)
-- Cloud object storage for uploaded files (e.g., S3) instead of local disk storage
+- Cloud object storage for uploaded files (e.g., S3 or Vercel Blob) instead of in-memory/local disk storage
 - Expanded test coverage (visual regression, load testing)
+- Automated CI/CD checks (lint + test) before production deploys
 
 ---
 
@@ -615,4 +796,3 @@ Computer Science Student — FAST NUCES
 ## 📄 License
 
 This project was developed for educational purposes and as part of a Full Stack Internship assessment.
-
