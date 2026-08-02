@@ -19,7 +19,7 @@ The project evolved across ten key milestones:
 
 ## 🌍 Live Deployment
 
-**Live App:** [https://prompt-flow-landing-page.vercel.app](https://prompt-flow-landing-page.vercel.app) <!-- ⚠️ Replace with your actual production URL from Vercel → Deployments → Production -->
+**Live App:** [prompt-flow-landing-page-git-main-ubaids-projects-b9467ab7.vercel.app](https://prompt-flow-landing-page.vercel.app) <!-- ⚠️ Replace with your actual production URL from Vercel → Deployments → Production -->
 
 **GitHub Repository:** [github.com/UBAID0704/PromptFlow-AI-Landing-Page-](https://github.com/UBAID0704/PromptFlow-AI-Landing-Page-)
 
